@@ -20,7 +20,13 @@ import { Button } from "./ui/button";
 import { BiSolidTrash } from "react-icons/bi";
 
 const Designer = () => {
-  const { elements, addElement } = useDesigner();
+  const {
+    elements,
+    addElement,
+    selectedElement,
+    setSelectedElement,
+    removeElement,
+  } = useDesigner();
 
   const droppable = useDroppable({
     id: "designer-drop-area",
@@ -37,26 +43,105 @@ const Designer = () => {
       if (!active || !over) return;
 
       const isDesignerBtnElement = active.data?.current?.isDesignerBtnElement;
+      const isDroppingOverDesignerDropArea =
+        over.data?.current?.isDesignerDropArea;
 
-      if (isDesignerBtnElement) {
+      // Primer Escenario: Lanzando un Elemento sobre el Area de Lanzamiento.
+      const droppingSidebarBtnOverDesignerDropArea =
+        isDesignerBtnElement && isDroppingOverDesignerDropArea;
+
+      if (droppingSidebarBtnOverDesignerDropArea) {
         const type = active.data?.current?.type;
         const newElement = FormElements[type as ElementsType].construct(
           idGenerator()
         );
 
-        addElement(0, newElement);
+        addElement(elements.length, newElement);
+      }
+
+      const isDroppingOverDesingerElementTopHalf =
+        over.data?.current?.isTopHalfDesignerElement;
+
+      const isDroppingOverDesingerElementBottomHalf =
+        over.data?.current?.isBottomHalfDesignerElement;
+
+      const isDroppingOverDesignerElement =
+        isDroppingOverDesingerElementTopHalf |
+        isDroppingOverDesingerElementBottomHalf;
+
+      const droppingSidebarBtnOverDesignerElement =
+        isDesignerBtnElement && isDroppingOverDesignerElement;
+
+      // Segundo Escenario: Agregar un elemento sobre otro elemento, arriba o debajo.
+
+      if (droppingSidebarBtnOverDesignerElement) {
+        const type = active.data?.current?.type;
+        const newElement = FormElements[type as ElementsType].construct(
+          idGenerator()
+        );
+
+        const overId = over.data?.current?.elementId;
+
+        const overElementIndex = elements.findIndex((el) => el.id === overId);
+
+        if (overElementIndex === -1) {
+          throw new Error("Elemento no Encontrado");
+        }
+
+        let indexForNewElement = overElementIndex; // Asumimos que está en la Mitad superior (Top-Half)
+        if (isDroppingOverDesingerElementBottomHalf) {
+          indexForNewElement = overElementIndex + 1;
+        }
+
+        addElement(indexForNewElement, newElement);
+      }
+
+      // Tercer Escenario: Arrastrar un elemento encima o debajo de otro elemento, cambiando el orden.
+
+      const isDraggingDesignerElement = active.data?.current?.isDesignerElement;
+
+      const draggingDesignerElementOverAnotherDesignerElement =
+        isDroppingOverDesignerElement && isDraggingDesignerElement;
+
+      if (draggingDesignerElementOverAnotherDesignerElement) {
+        const activeId = active.data?.current?.elementId;
+        const overId = over.data?.current?.elementId;
+
+        const activeElementIndex = elements.findIndex(
+          (el) => el.id === activeId
+        );
+        const overElementIndex = elements.findIndex((el) => el.id === overId);
+
+        if (activeElementIndex === -1 || overElementIndex === -1) {
+          throw new Error("Elemento no encontrado.");
+        }
+
+        const activeElement = { ...elements[activeElementIndex] };
+        removeElement(activeId);
+
+        let indexForNewElement = overElementIndex; // Asumimos que está en la Mitad superior (Top-Half)
+        if (isDroppingOverDesingerElementBottomHalf) {
+          indexForNewElement = overElementIndex + 1;
+        }
+
+        addElement(indexForNewElement, activeElement);
       }
     },
   });
 
   return (
     <div className="flex w-full h-full">
-      <div className="p-4 w-full">
+      <div
+        className="p-4 w-full"
+        onClick={() => {
+          if (selectedElement) setSelectedElement(null);
+        }}
+      >
         <div
           ref={droppable.setNodeRef}
           className={cn(
             "bg-background max-w-[920px] h-full m-auto rounded-xl flex flex-col flex-grow items-center justify-start flex-1 overflow-y-auto",
-            droppable.isOver && "ring-2 ring-primary/20"
+            droppable.isOver && "ring-4 ring-primary ring-inset"
           )}
         >
           {!droppable.isOver && elements.length === 0 && (
@@ -64,7 +149,7 @@ const Designer = () => {
               Suelta Aquí!
             </p>
           )}
-          {droppable.isOver && (
+          {droppable.isOver && elements.length === 0 && (
             <div className="p-4 w-full">
               <div className="h-[120px] rounded-md bg-primary/20"></div>
             </div>
@@ -84,7 +169,7 @@ const Designer = () => {
 };
 
 function DesignerElementWrapper({ element }: { element: FormElementInstance }) {
-  const { removeElement } = useDesigner();
+  const { removeElement, selectedElement, setSelectedElement } = useDesigner();
 
   const [mouseIsOver, setMouseIsOver] = useState<boolean>(false);
   const topHalf = useDroppable({
@@ -114,6 +199,8 @@ function DesignerElementWrapper({ element }: { element: FormElementInstance }) {
     },
   });
 
+  if (draggable.isDragging) return null;
+
   const DesignerElement = FormElements[element.type].designerComponent;
   return (
     <div
@@ -124,23 +211,22 @@ function DesignerElementWrapper({ element }: { element: FormElementInstance }) {
       onMouseEnter={() => {
         setMouseIsOver(true);
       }}
-      onMouseLeave={() => {
+      onMouseLeave={(e) => {
+        e.stopPropagation();
         setMouseIsOver(false);
+      }}
+      onClick={(e) => {
+        e.stopPropagation();
+        setSelectedElement(element);
       }}
     >
       <div
         ref={topHalf.setNodeRef}
-        className={cn(
-          "absolute w-full h-1/2 rounded-t-md",
-          topHalf.isOver && "bg-green-500"
-        )}
+        className={cn("absolute w-full h-1/2 rounded-t-md")}
       />
       <div
         ref={bottomHalf.setNodeRef}
-        className={cn(
-          "absolute w-full bottom-0 h-1/2 rounded-b-md",
-          bottomHalf.isOver && "bg-red-500"
-        )}
+        className={cn("absolute w-full bottom-0 h-1/2 rounded-b-md")}
       />
       {mouseIsOver && (
         <>
@@ -148,8 +234,12 @@ function DesignerElementWrapper({ element }: { element: FormElementInstance }) {
             <Button
               className="flex justify-center h-full border rounded-md rounded-l-none bg-red-500"
               variant="outline"
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation(); // Evita la selección del elemento al momento de eliminar.
                 removeElement(element.id);
+                if (selectedElement?.id === element.id) {
+                  setSelectedElement(null);
+                }
               }}
             >
               <BiSolidTrash className="h-6 w-6" />
@@ -162,6 +252,9 @@ function DesignerElementWrapper({ element }: { element: FormElementInstance }) {
           </div>
         </>
       )}
+      {topHalf.isOver && (
+        <div className="absolute top-0 w-full rounded-md h-[7px] bg-primary rounded-b-none" />
+      )}
       <div
         className={cn(
           "flex w-full h-[120px] items-center rounded-md bg-accent/40 px-4 py-2 pointer-events-none opacity-100",
@@ -170,6 +263,9 @@ function DesignerElementWrapper({ element }: { element: FormElementInstance }) {
       >
         <DesignerElement elementInstance={element} />
       </div>
+      {bottomHalf.isOver && (
+        <div className="absolute bottom-0 w-full rounded-md h-[7px] bg-primary rounded-t-none" />
+      )}
     </div>
   );
 }
