@@ -73,7 +73,7 @@ function StatsCards(props: StatsCardProps) {
         title="Total de Aportes"
         icon={<FaWpforms className="text-yellow-600" />}
         helperText="Aportes del Formulario"
-        value={data?.visits.toLocaleString() || ""}
+        value={data?.submissions.toLocaleString() || ""}
         loading={loading}
         className="shadow-md shadow-yellow-600"
       />
@@ -81,7 +81,7 @@ function StatsCards(props: StatsCardProps) {
         title="Ratio de Aportes"
         icon={<HiCursorClick className="text-green-600" />}
         helperText="Visitas que resultan en Aportes del Formulario"
-        value={data?.visits.toLocaleString() + "%" || ""}
+        value={data?.submissionRate.toLocaleString() + "%" || ""}
         loading={loading}
         className="shadow-md shadow-green-600"
       />
@@ -89,7 +89,7 @@ function StatsCards(props: StatsCardProps) {
         title="Ratio de Rebotes"
         icon={<TbArrowBounce className="text-red-600" />}
         helperText="Visitas que no interactuaron."
-        value={data?.visits.toLocaleString() + "%" || ""}
+        value={data?.submissionRate.toLocaleString() + "%" || ""}
         loading={loading}
         className="shadow-md shadow-red-600"
       />
@@ -97,7 +97,7 @@ function StatsCards(props: StatsCardProps) {
   );
 }
 
-function StatsCard({
+export function StatsCard({
   title,
   value,
   icon,

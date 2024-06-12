@@ -6,6 +6,7 @@ import { esES } from "@clerk/localizations";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { Toaster } from "@/components/ui/toaster";
 import DesignerContextProvider from "@/components/context/DesignerContext";
+import NextTopLoader from "nextjs-toploader";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -29,6 +30,7 @@ export default function RootLayout({
             " w-full h-screen flex justify-center items-center"
           }
         >
+          <NextTopLoader />
           <DesignerContextProvider>
             <ThemeProvider
               attribute="class"
