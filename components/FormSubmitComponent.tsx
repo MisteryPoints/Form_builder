@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useRef, useState, useTransition } from "react";
 import { FormElementInstance, FormElements } from "./FormElements";
 import { Button } from "./ui/button";
 import { HiCursorClick } from "react-icons/hi";
 import { toast } from "./ui/use-toast";
+import { ImSpinner2 } from "react-icons/im";
+import { SubmitForm } from "@/actions/form";
 
 const FormSubmitComponent = ({
   formUrl,
@@ -16,6 +18,10 @@ const FormSubmitComponent = ({
   const formValues = useRef<{ [key: string]: string }>({});
   const formErrors = useRef<{ [key: string]: boolean }>({});
   const [renderKey, setRenderKey] = useState(new Date().getTime());
+
+  const [submitted, setSubmitted] = useState(false);
+
+  const [pending, startTransition] = useTransition();
 
   const validateForm = useCallback(() => {
     for (const field of content) {
@@ -38,7 +44,7 @@ const FormSubmitComponent = ({
     formValues.current[key] = value;
   }, []);
 
-  const submitForm = () => {
+  const submitForm = async () => {
     formErrors.current = {};
     const validForm = validateForm();
     if (!validForm) {
@@ -50,8 +56,34 @@ const FormSubmitComponent = ({
       });
       return;
     }
+
+    try {
+      const jsonContent = JSON.stringify(formValues.current);
+      await SubmitForm(formUrl, jsonContent);
+      setSubmitted(true);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Ha ocurrido un error inesperado.",
+        variant: "destructive",
+      });
+    }
+
     console.log("FORM VALUES", formValues.current);
   };
+
+  if (submitted) {
+    return (
+      <div className="flex justify-center w-full h-full items-center p-8">
+        <div className="max-w-[620px] flex flex-col gap-4 flex-grow bg-background w-full p-8 overflow-y-auto border shadow-xl shadow-blue-700 rounded">
+          <h1 className="text-2xl font-bold">Formulario Enviado</h1>
+          <p className="text-muted-foreground">
+            Gracias por enviar el Formulario, ya puedes cerrar la pestaña.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex justify-center w-full h-full items-center p-8">
@@ -67,16 +99,19 @@ const FormSubmitComponent = ({
               elementInstance={element}
               submitValue={submitValue}
               isInvalid={formErrors.current[element.id]}
+              defaultValue={formValues.current[element.id]}
             />
           );
         })}
         <Button
           className="mt-8"
+          disabled={pending}
           onClick={() => {
-            submitForm();
+            startTransition(submitForm);
           }}
         >
-          <HiCursorClick className="mr-2" /> Enviar{" "}
+          {!pending && <HiCursorClick className="mr-2" />}{" "}
+          {pending && <ImSpinner2 className="animate-spin mr-2" />} Enviar{" "}
         </Button>
       </div>
     </div>
